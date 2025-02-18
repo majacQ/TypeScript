@@ -1,63 +1,51 @@
-import * as ts from "../../_namespaces/ts";
+import * as ts from "../../_namespaces/ts.js";
+import { jsonToReadableText } from "../helpers.js";
 import {
-    createServerHost,
-    File,
-} from "../virtualFileSystemWithWatch";
-import {
-    createSession,
-    executeSessionRequest,
+    baselineTsserverLogs,
     openFilesForSession,
-} from "./helpers";
+    TestSession,
+} from "../helpers/tsserver.js";
+import {
+    File,
+    TestServerHost,
+} from "../helpers/virtualFileSystemWithWatch.js";
 
-describe("unittests:: tsserver:: duplicate packages", () => {
+describe("unittests:: tsserver:: duplicatePackages::", () => {
     // Tests that 'moduleSpecifiers.ts' will import from the redirecting file, and not from the file it redirects to, if that can provide a global module specifier.
     it("works with import fixes", () => {
         const packageContent = "export const foo: number;";
-        const packageJsonContent = JSON.stringify({ name: "foo", version: "1.2.3" });
-        const aFooIndex: File = { path: "/a/node_modules/foo/index.d.ts", content: packageContent };
-        const aFooPackage: File = { path: "/a/node_modules/foo/package.json", content: packageJsonContent };
-        const bFooIndex: File = { path: "/b/node_modules/foo/index.d.ts", content: packageContent };
-        const bFooPackage: File = { path: "/b/node_modules/foo/package.json", content: packageJsonContent };
+        const packageJsonContent = jsonToReadableText({ name: "foo", version: "1.2.3" });
+        const aFooIndex: File = { path: "/home/src/projects/project/a/node_modules/foo/index.d.ts", content: packageContent };
+        const aFooPackage: File = { path: "/home/src/projects/project/a/node_modules/foo/package.json", content: packageJsonContent };
+        const bFooIndex: File = { path: "/home/src/projects/project/b/node_modules/foo/index.d.ts", content: packageContent };
+        const bFooPackage: File = { path: "/home/src/projects/project/b/node_modules/foo/package.json", content: packageJsonContent };
 
         const userContent = 'import("foo");\nfoo';
-        const aUser: File = { path: "/a/user.ts", content: userContent };
-        const bUser: File = { path: "/b/user.ts", content: userContent };
+        const aUser: File = { path: "/home/src/projects/project/a/user.ts", content: userContent };
+        const bUser: File = { path: "/home/src/projects/project/b/user.ts", content: userContent };
         const tsconfig: File = {
-            path: "/tsconfig.json",
+            path: "/home/src/projects/project/tsconfig.json",
             content: "{}",
         };
 
-        const host = createServerHost([aFooIndex, aFooPackage, bFooIndex, bFooPackage, aUser, bUser, tsconfig]);
-        const session = createSession(host);
+        const host = TestServerHost.createServerHost([aFooIndex, aFooPackage, bFooIndex, bFooPackage, aUser, bUser, tsconfig]);
+        const session = new TestSession(host);
 
         openFilesForSession([aUser, bUser], session);
 
         for (const user of [aUser, bUser]) {
-            const response = executeSessionRequest<ts.server.protocol.CodeFixRequest, ts.server.protocol.CodeFixResponse>(session, ts.server.protocol.CommandTypes.GetCodeFixes, {
-                file: user.path,
-                startLine: 2,
-                startOffset: 1,
-                endLine: 2,
-                endOffset: 4,
-                errorCodes: [ts.Diagnostics.Cannot_find_name_0.code],
-            });
-            assert.deepEqual<readonly ts.server.protocol.CodeFixAction[] | undefined>(response, [
-                {
-                    description: `Add import from "foo"`,
-                    fixName: "import",
-                    changes: [{
-                        fileName: user.path,
-                        textChanges: [{
-                            start: { line: 1, offset: 1 },
-                            end: { line: 1, offset: 1 },
-                            newText: 'import { foo } from "foo";\n\n',
-                        }],
-                    }],
-                    commands: undefined,
-                    fixId: undefined,
-                    fixAllDescription: undefined
+            session.executeCommandSeq<ts.server.protocol.CodeFixRequest>({
+                command: ts.server.protocol.CommandTypes.GetCodeFixes,
+                arguments: {
+                    file: user.path,
+                    startLine: 2,
+                    startOffset: 1,
+                    endLine: 2,
+                    endOffset: 4,
+                    errorCodes: [ts.Diagnostics.Cannot_find_name_0.code],
                 },
-            ]);
+            });
         }
+        baselineTsserverLogs("duplicatePackages", "works with import fixes", session);
     });
 });

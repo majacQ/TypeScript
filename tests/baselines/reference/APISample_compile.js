@@ -53,8 +53,8 @@ compile(process.argv.slice(2), {
  *       at: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API#a-minimal-compiler
  *       Please log a "breaking change" issue for any API breaking change affecting this issue
  */
-exports.__esModule = true;
-exports.compile = void 0;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.compile = compile;
 var ts = require("typescript");
 function compile(fileNames, options) {
     var program = ts.createProgram(fileNames, options);
@@ -73,7 +73,6 @@ function compile(fileNames, options) {
     console.log("Process exiting with code '".concat(exitCode, "'."));
     process.exit(exitCode);
 }
-exports.compile = compile;
 compile(process.argv.slice(2), {
     noEmitOnError: true, noImplicitAny: true,
     target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS

@@ -79,8 +79,8 @@ fileNames.forEach(fileName => {
  *       at: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API#traversing-the-ast-with-a-little-linter
  *       Please log a "breaking change" issue for any API breaking change affecting this issue
  */
-exports.__esModule = true;
-exports.delint = void 0;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.delint = delint;
 var ts = require("typescript");
 function delint(sourceFile) {
     delintNode(sourceFile);
@@ -119,7 +119,6 @@ function delint(sourceFile) {
         console.log("".concat(sourceFile.fileName, " (").concat(line + 1, ",").concat(character + 1, "): ").concat(message));
     }
 }
-exports.delint = delint;
 var fileNames = process.argv.slice(2);
 fileNames.forEach(function (fileName) {
     // Parse a file

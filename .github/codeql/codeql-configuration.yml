@@ -1,34 +1,10 @@
-name : CodeQL Configuration
+name: CodeQL Configuration
 
-paths:
-  - src
-  - scripts
-  - Gulpfile.mjs
 paths-ignore:
   - src/lib
+  - tests
 
-# These queries appear to time out after the module conversion.
-# https://github.com/github/codeql/issues/10937
 query-filters:
+  # Falls over on our dynamic RegExp generation
   - exclude:
-      id: js/path-injection # TaintedPath.ql
-  - exclude:
-      id: js/command-line-injection # CommandInjection.ql
-  - exclude:
-      id: js/code-injection # CodeInjection.ql
-  - exclude:
-      id: js/bad-code-sanitization # ImproperCodeSanitization.ql
-  - exclude:
-      id: js/unsafe-dynamic-method-access # UnsafeDynamicMethodAccess.ql
-  - exclude:
-      id: js/clear-text-logging # CleartextLogging.ql
-  - exclude:
-      id: js/regex-injection # RegExpInjection.ql
-  - exclude:
-      id: js/unvalidated-dynamic-method-call # UnvalidatedDynamicMethodCall.ql
-  - exclude:
-      id: js/insecure-download # InsecureDownload.ql
-  - exclude:
-      id: js/prototype-polluting-assignment # PrototypePollutingAssignment.ql
-  - exclude:
-      id: js/request-forgery # RequestForgery.ql
+      id: js/regex-injection

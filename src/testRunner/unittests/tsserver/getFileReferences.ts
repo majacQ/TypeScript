@@ -1,45 +1,44 @@
-import * as ts from "../../_namespaces/ts";
+import * as ts from "../../_namespaces/ts.js";
 import {
-    createServerHost,
-    File,
-} from "../virtualFileSystemWithWatch";
-import {
-    createSession,
-    executeSessionRequest,
-    makeReferenceItem,
+    baselineTsserverLogs,
     openFilesForSession,
-} from "./helpers";
+    TestSession,
+} from "../helpers/tsserver.js";
+import {
+    File,
+    TestServerHost,
+} from "../helpers/virtualFileSystemWithWatch.js";
 
-describe("unittests:: tsserver:: getFileReferences", () => {
+describe("unittests:: tsserver:: getFileReferences::", () => {
     const importA = `import "./a";`;
     const importCurlyFromA = `import {} from "./a";`;
-    const importAFromA = `import { a } from "/project/a";`;
+    const importAFromA = `import { a } from "/home/src/projects/project/a";`;
     const typeofImportA = `type T = typeof import("./a").a;`;
 
     const aTs: File = {
-        path: "/project/a.ts",
+        path: "/home/src/projects/project/a.ts",
         content: "export const a = {};",
     };
     const bTs: File = {
-        path: "/project/b.ts",
+        path: "/home/src/projects/project/b.ts",
         content: importA,
     };
     const cTs: File = {
-        path: "/project/c.ts",
-        content: importCurlyFromA
+        path: "/home/src/projects/project/c.ts",
+        content: importCurlyFromA,
     };
     const dTs: File = {
-        path: "/project/d.ts",
-        content: [importAFromA, typeofImportA].join("\n")
+        path: "/home/src/projects/project/d.ts",
+        content: [importAFromA, typeofImportA].join("\n"),
     };
     const tsconfig: File = {
-        path: "/project/tsconfig.json",
+        path: "/home/src/projects/project/tsconfig.json",
         content: "{}",
     };
 
     function makeSampleSession() {
-        const host = createServerHost([aTs, bTs, cTs, dTs, tsconfig]);
-        const session = createSession(host);
+        const host = TestServerHost.createServerHost([aTs, bTs, cTs, dTs, tsconfig]);
+        const session = new TestSession(host);
         openFilesForSession([aTs, bTs, cTs, dTs], session);
         return session;
     }
@@ -47,45 +46,25 @@ describe("unittests:: tsserver:: getFileReferences", () => {
     it("should get file references", () => {
         const session = makeSampleSession();
 
-        const response = executeSessionRequest<ts.server.protocol.FileReferencesRequest, ts.server.protocol.FileReferencesResponse>(
-            session,
-            ts.server.protocol.CommandTypes.FileReferences,
-            { file: aTs.path },
-        );
-
-        const expectResponse: ts.server.protocol.FileReferencesResponseBody = {
-            refs: [
-                makeReferenceItem({ file: bTs, text: "./a", lineText: importA, contextText: importA, isWriteAccess: false }),
-                makeReferenceItem({ file: cTs, text: "./a", lineText: importCurlyFromA, contextText: importCurlyFromA, isWriteAccess: false }),
-                makeReferenceItem({ file: dTs, text: "/project/a", lineText: importAFromA, contextText: importAFromA, isWriteAccess: false }),
-                makeReferenceItem({ file: dTs, text: "./a", lineText: typeofImportA, contextText: typeofImportA, isWriteAccess: false }),
-            ],
-            symbolName: `"${aTs.path}"`,
-        };
-
-        assert.deepEqual(response, expectResponse);
+        session.executeCommandSeq<ts.server.protocol.FileReferencesRequest>({
+            command: ts.server.protocol.CommandTypes.FileReferences,
+            arguments: { file: aTs.path },
+        });
+        baselineTsserverLogs("getFileReferences", "should get file references", session);
     });
 
     it("should skip lineText from file references", () => {
         const session = makeSampleSession();
-        session.getProjectService().setHostConfiguration({ preferences: { disableLineTextInReferences: true } });
-
-        const response = executeSessionRequest<ts.server.protocol.FileReferencesRequest, ts.server.protocol.FileReferencesResponse>(
-            session,
-            ts.server.protocol.CommandTypes.FileReferences,
-            { file: aTs.path },
-        );
-
-        const expectResponse: ts.server.protocol.FileReferencesResponseBody = {
-            refs: [
-                makeReferenceItem({ file: bTs, text: "./a", lineText: undefined, contextText: importA, isWriteAccess: false }),
-                makeReferenceItem({ file: cTs, text: "./a", lineText: undefined, contextText: importCurlyFromA, isWriteAccess: false }),
-                makeReferenceItem({ file: dTs, text: "/project/a", lineText: undefined, contextText: importAFromA, isWriteAccess: false }),
-                makeReferenceItem({ file: dTs, text: "./a", lineText: undefined, contextText: typeofImportA, isWriteAccess: false }),
-            ],
-            symbolName: `"${aTs.path}"`,
-        };
-
-        assert.deepEqual(response, expectResponse);
+        session.executeCommandSeq<ts.server.protocol.ConfigureRequest>({
+            command: ts.server.protocol.CommandTypes.Configure,
+            arguments: {
+                preferences: { disableLineTextInReferences: true },
+            },
+        });
+        session.executeCommandSeq<ts.server.protocol.FileReferencesRequest>({
+            command: ts.server.protocol.CommandTypes.FileReferences,
+            arguments: { file: aTs.path },
+        });
+        baselineTsserverLogs("getFileReferences", "should skip lineText from file references", session);
     });
 });
